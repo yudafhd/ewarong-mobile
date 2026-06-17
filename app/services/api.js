@@ -1,7 +1,6 @@
 /* eslint-disable arrow-parens */
 import _ from 'lodash';
-import axios from 'axios';
-import {Alert} from 'react-native';
+import { Alert } from 'react-native';
 import EndPoints from '../constants/endPoints';
 
 const insertFormData = (formData, key, value) => {
@@ -37,7 +36,7 @@ const api = (getState, dispatch, endPoint, method = 'get', params, headers) => {
   };
 
   if (getState) {
-    const {token} = getState().session;
+    const { token } = getState().session;
     headersData = {
       Authorization: token ? `Bearer ${token}` : '',
       ...headersData,
@@ -64,14 +63,41 @@ const api = (getState, dispatch, endPoint, method = 'get', params, headers) => {
     ],
   };
   console.log(optionData);
-  return axios(optionData)
+
+  // Build fetch options
+  const fetchOptions = {
+    method: optionData.method.toUpperCase(),
+    headers: optionData.headers,
+  };
+
+  // Add body for POST/PUT requests
+  if (optionData.data) {
+    fetchOptions.body = optionData.transformRequest[0](
+      optionData.data,
+      optionData.headers,
+    );
+  }
+
+  // Build URL with query params for GET requests
+  let url = optionData.url;
+  if (optionData.params && Object.keys(optionData.params).length > 0) {
+    const queryString = new URLSearchParams(optionData.params).toString();
+    url = `${url}?${queryString}`;
+  }
+
+  return fetch(url, fetchOptions)
     .then((response) => {
       console.log('inside api js', response);
-      return response;
+      if (!response.ok) {
+        return response.json().then((data) => {
+          throw data;
+        });
+      }
+      return response.json();
     })
     .catch((error) => {
-      const {response} = error;
-      Alert.alert('Error', JSON.stringify(response.data.message));
+      const message = error.message || JSON.stringify(error);
+      Alert.alert('Error', message);
       throw new Error(error);
     });
 };
